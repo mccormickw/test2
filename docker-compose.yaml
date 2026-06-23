@@ -1,0 +1,8 @@
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    image: hello-world:latest
+    environment:
+      NODE_ENV: production
