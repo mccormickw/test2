@@ -105,3 +105,34 @@ other styling), handle `history` + `message`, input emits `message`. Reuse `shar
 - `JWT_SECRET` in compose is a dev placeholder — production needs a real secret.
 - Single global room keeps Socket.io simple (no rooms); multi-room is a later `socket.join(room)` extension.
 - Steps 1–8 are backend/docs and verifiable via curl/redis-cli; 9–11 need the Expo toolchain/device.
+
+## Codespaces: port forwarding & testing
+
+We develop in a GitHub Codespace (remote container). The server runs in the container; clients
+may be local. There are **two ways to reach the server**, and they behave differently:
+
+| URL | Reaches server via | Use for |
+| --- | --- | --- |
+| `http://localhost:3000` | direct, inside the container | REST Client / curl run inside the Codespace |
+| `https://<codespace>-3000.app.github.dev` | GitHub's forwarding proxy | browsers and external devices (e.g. the phone running Expo) |
+
+- **Forwarded ports are private by default.** The proxy then requires a GitHub session cookie.
+  Requests without it (REST Client, curl, another device) get a **302 redirect to a GitHub login
+  page** — which surfaces in browsers as a misleading **"CORS error" / "failed to fetch."** The
+  request never reaches Express, so it is *not* an app CORS problem (our `cors()` returns
+  `Access-Control-Allow-Origin: *`).
+- **Fix — make the port public** so the proxy passes requests straight through:
+  ```
+  gh codespace ports visibility 3000:public -c "$CODESPACE_NAME"
+  ```
+  Verify with an unauthenticated request: `curl https://<codespace>-3000.app.github.dev/health`
+  → `200 {"status":"ok"}`. Revert with `...visibility 3000:private...`.
+- **Caveats:** public = anyone with the URL can reach it (fine for dev only). Visibility resets on
+  Codespace rebuild — to make it stick, add a `.devcontainer/devcontainer.json` `portsAttributes`
+  entry for 3000. For backend-only testing, prefer `localhost` (no proxy, never hits this issue).
+
+## Operational notes
+
+- Don't spawn detached dev servers (`(node ... &)`): in this sandbox the resulting process can't
+  be signalled later (`kill` → `Operation not permitted`) and squats on port 3000. Use managed
+  background tasks, or `npm run dev` in a terminal, so the process stays controllable.
