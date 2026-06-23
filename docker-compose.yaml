@@ -1,8 +1,10 @@
 services:
   app:
     build:
-      context: .
+      context: ./server
       target: runtime
-    image: hello-world:latest
+    image: chat-app:latest
+    ports:
+      - "3000:3000"
     environment:
       NODE_ENV: production
